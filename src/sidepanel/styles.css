@@ -1,0 +1,191 @@
+:root {
+  /* 深色主题（默认）：所有表面色从主题色派生 */
+  --accent: #7c9a72;
+  --bg: color-mix(in srgb, var(--accent) 10%, #161616);
+  --panel: color-mix(in srgb, var(--accent) 14%, #1d1d1d);
+  --input-bg: color-mix(in srgb, var(--accent) 8%, #141414);
+  --text: #e8e6e1;
+  --muted: color-mix(in srgb, var(--accent) 22%, #999590);
+  --accent-soft: color-mix(in srgb, var(--accent) 24%, #222222);
+  --border: color-mix(in srgb, var(--accent) 28%, #2c2c2c);
+  --danger: #f06a66;
+  --primary-btn-text: #16190f;
+  --app-font: -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --app-font-size: 14px;
+  font-size: 14px;
+}
+
+:root[data-theme='light'] {
+  --bg: color-mix(in srgb, var(--accent) 10%, #f5f5f5);
+  --panel: color-mix(in srgb, var(--accent) 5%, #ffffff);
+  --input-bg: #ffffff;
+  --text: #1f2329;
+  --muted: color-mix(in srgb, var(--accent) 25%, #8a8a8a);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, #ffffff);
+  --border: color-mix(in srgb, var(--accent) 22%, #e2e2e2);
+  --danger: #f54a45;
+  --primary-btn-text: #ffffff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--app-font);
+  font-size: var(--app-font-size);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search {
+  flex: 1;
+  min-width: 120px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  outline: none;
+  background: var(--input-bg);
+  color: var(--text);
+}
+.search::placeholder { color: var(--muted); }
+.search:focus { border-color: var(--accent); }
+
+button {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  cursor: pointer;
+  color: var(--text);
+  white-space: nowrap;
+}
+button:hover { background: var(--accent-soft); border-color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.primary {
+  background: var(--accent);
+  color: var(--primary-btn-text);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+button.primary:hover { opacity: 0.9; }
+button.danger { color: var(--danger); }
+
+.status-bar {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.status-bar a { color: var(--accent); }
+
+.progress-track {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+
+.tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.folder-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  user-select: none;
+}
+.folder-row:hover { background: var(--accent-soft); }
+.folder-row .count {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 12px;
+}
+.folder-children { margin-left: 16px; }
+
+.bookmark-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+}
+.bookmark-row:hover { background: var(--accent-soft); }
+.bookmark-row img {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.bookmark-row .bm-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 48px 24px;
+  line-height: 1.8;
+}
+
+.error-msg {
+  color: var(--danger);
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.modal {
+  background: var(--panel);
+  border-radius: 10px;
+  padding: 20px;
+  width: 300px;
+  line-height: 1.7;
+}
+.modal h3 { margin: 0 0 8px; }
+.modal .actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}

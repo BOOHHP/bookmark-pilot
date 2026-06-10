@@ -1,0 +1,44 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="18" y1="14" x2="110" y2="114" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0D1328"/>
+      <stop offset="0.48" stop-color="#18214A"/>
+      <stop offset="1" stop-color="#0A2B3F"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="20" y1="17" x2="112" y2="110" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67E8F9"/>
+      <stop offset="0.52" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#F97316"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="36" y1="29" x2="91" y2="93" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="0.58" stop-color="#C7D2FE"/>
+      <stop offset="1" stop-color="#7DD3FC"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="75" y1="70" x2="107" y2="102" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FDE68A"/>
+      <stop offset="0.45" stop-color="#F97316"/>
+      <stop offset="1" stop-color="#FB7185"/>
+    </linearGradient>
+    <filter id="softShadow" x="14" y="13" width="105" height="108" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#020617" flood-opacity="0.48"/>
+    </filter>
+  </defs>
+  <rect x="7" y="7" width="114" height="114" rx="28" fill="url(#bg)"/>
+  <rect x="9.5" y="9.5" width="109" height="109" rx="25.5" stroke="url(#rim)" stroke-width="5"/>
+  <g opacity="0.34">
+    <path d="M27 82C48 58 77 54 101 32" stroke="#67E8F9" stroke-width="3" stroke-linecap="round"/>
+    <path d="M25 98C52 75 77 78 105 54" stroke="#A78BFA" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  <g filter="url(#softShadow)">
+    <path d="M37 73.5H91L83.5 99.5H44.5L37 73.5Z" fill="#38BDF8"/>
+    <path d="M43 51.5H85L79 78.5H49L43 51.5Z" fill="#A78BFA"/>
+    <path d="M50 27.5H78V64.5L64 55.5L50 64.5V27.5Z" fill="url(#paper)"/>
+    <path d="M37 73.5H91L83.5 99.5H44.5L37 73.5Z" stroke="#E0F2FE" stroke-opacity="0.86" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M43 51.5H85L79 78.5H49L43 51.5Z" stroke="#F5F3FF" stroke-opacity="0.82" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M50 27.5H78V64.5L64 55.5L50 64.5V27.5Z" stroke="white" stroke-opacity="0.9" stroke-width="3" stroke-linejoin="round"/>
+  </g>
+  <circle cx="92.5" cy="88.5" r="18.5" fill="url(#accent)" stroke="#FFF7ED" stroke-width="4"/>
+  <path d="M92.5 78L95.6 85.4L103.5 88.5L95.6 91.6L92.5 99L89.4 91.6L81.5 88.5L89.4 85.4L92.5 78Z" fill="white"/>
+  <circle cx="92.5" cy="88.5" r="5.4" fill="#0F172A"/>
+</svg>

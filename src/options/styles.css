@@ -1,0 +1,258 @@
+/* MarkSnip 风格设置页：所有表面色从 --accent 派生，深/浅色由 html[data-theme] 控制 */
+:root {
+  --accent: #7c9a72;
+  --bg: color-mix(in srgb, var(--accent) 10%, #161616);
+  --bg-elevated: color-mix(in srgb, var(--accent) 13%, #1b1b1b);
+  --card: color-mix(in srgb, var(--accent) 16%, #1e1e1e);
+  --card-border: color-mix(in srgb, var(--accent) 28%, #2c2c2c);
+  --input-bg: color-mix(in srgb, var(--accent) 8%, #141414);
+  --text: #e8e6e1;
+  --text-muted: color-mix(in srgb, var(--accent) 22%, #999590);
+  --text-dim: color-mix(in srgb, var(--accent) 18%, #6e6a64);
+  --primary-btn-text: #16190f;
+  --radius: 10px;
+}
+
+:root[data-theme='light'] {
+  --bg: color-mix(in srgb, var(--accent) 10%, #f0f0f0);
+  --bg-elevated: color-mix(in srgb, var(--accent) 6%, #fafafa);
+  --card: color-mix(in srgb, var(--accent) 8%, #ffffff);
+  --card-border: color-mix(in srgb, var(--accent) 25%, #dddddd);
+  --input-bg: #ffffff;
+  --text: #1f2329;
+  --text-muted: color-mix(in srgb, var(--accent) 25%, #777777);
+  --text-dim: color-mix(in srgb, var(--accent) 18%, #999999);
+  --primary-btn-text: #ffffff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+}
+
+.page {
+  max-width: 1100px;
+  margin: 24px auto;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  background: var(--bg-elevated);
+  min-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* 顶部栏：主题色渐变 */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent) 75%, #2a2a2a) 0%,
+    color-mix(in srgb, var(--accent) 50%, #1d1d1d) 55%,
+    color-mix(in srgb, var(--accent) 30%, #141414) 100%
+  );
+}
+.header .logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: #14130f;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+}
+.header h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #f3f4ef;
+}
+.header .sub {
+  font-size: 12px;
+  color: rgba(243, 244, 239, 0.75);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* 左侧导航 */
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  padding: 16px 10px;
+  border-right: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-size: 13.5px;
+  background: none;
+  text-align: left;
+  width: 100%;
+}
+.nav-item:hover { background: var(--card); color: var(--text); }
+.nav-item.active {
+  background: var(--card);
+  color: var(--text);
+  border-color: var(--card-border);
+  border-left: 3px solid var(--accent);
+  font-weight: 600;
+}
+
+/* 内容区 */
+.content {
+  flex: 1;
+  padding: 28px 36px 48px;
+  overflow-y: auto;
+}
+.content h2 { margin: 0 0 6px; font-size: 20px; }
+.content .desc {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 22px;
+}
+
+.section-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 24px 0 10px;
+  letter-spacing: 0.05em;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+.card h3 { margin: 0 0 4px; font-size: 14.5px; }
+.card .hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+}
+
+label.field { display: block; font-size: 12.5px; color: var(--text-muted); margin: 12px 0 6px; }
+
+input[type='text'],
+input[type='password'],
+select {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--input-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13.5px;
+  outline: none;
+  font-family: Consolas, 'Cascadia Mono', monospace;
+}
+select { font-family: inherit; }
+input:focus, select:focus { border-color: var(--accent); }
+
+input[type='range'] { width: 220px; accent-color: var(--accent); vertical-align: middle; }
+
+.row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* 颜色选择 */
+.swatches { display: flex; gap: 10px; align-items: center; }
+.swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  padding: 0;
+}
+.swatch.selected { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
+input[type='color'] {
+  width: 36px;
+  height: 30px;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  background: var(--input-bg);
+  cursor: pointer;
+  padding: 2px;
+}
+
+/* 按钮 */
+.actions { display: flex; gap: 10px; margin-top: 20px; }
+button.btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13.5px;
+}
+button.btn:hover { border-color: var(--accent); }
+button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+button.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--primary-btn-text);
+  font-weight: 600;
+}
+button.btn.primary:hover { filter: brightness(1.1); }
+
+.status { margin-top: 14px; font-size: 13px; color: var(--text-muted); min-height: 20px; }
+
+.key-links { margin: 8px 0 0; font-size: 12.5px; }
+.key-links a { color: var(--accent); text-decoration: none; }
+.key-links a:hover { text-decoration: underline; }
+
+/* 预览块 */
+.preview {
+  border: 1px dashed var(--card-border);
+  border-radius: 8px;
+  padding: 14px;
+  margin-top: 14px;
+  background: var(--input-bg);
+}
+.preview .pv-folder { font-weight: 600; margin-bottom: 6px; }
+.preview .pv-item { color: var(--text-muted); padding-left: 18px; }
+.preview .pv-accent { color: var(--accent); }
+
+/* 胶囊选项（语言 / 颜色模式） */
+.pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.pill {
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--input-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+.pill:hover { border-color: var(--accent); color: var(--text); }
+.pill.active {
+  background: color-mix(in srgb, var(--accent) 25%, var(--input-bg));
+  border-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}

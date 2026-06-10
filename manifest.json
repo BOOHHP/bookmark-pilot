@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "BookmarkPilot 书签金字塔",
+  "version": "0.1.0",
+  "description": "用 LLM 理解你的书签，按金字塔结构智能分类，一键整理书签栏。",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "minimum_chrome_version": "114",
+  "permissions": ["bookmarks", "sidePanel", "storage", "favicon"],
+  "host_permissions": [
+    "https://apihub.agnes-ai.com/*",
+    "https://openrouter.ai/*",
+    "https://api.openai.com/*",
+    "https://api.anthropic.com/*",
+    "https://generativelanguage.googleapis.com/*",
+    "https://api.deepseek.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/index.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "options_page": "options.html",
+  "action": {
+    "default_title": "打开 BookmarkPilot",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  }
+}
