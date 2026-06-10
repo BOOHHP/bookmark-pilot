@@ -128,7 +128,7 @@ function OptionsPage() {
                       }
                       onClickCapture={() => setLiveModels([])}
                     >
-                      {p.label}
+                      {p.label}{p.id === 'agnes' && <span className="pill-badge">{d.freeBadge}</span>}
                     </button>
                   ))}
                 </div>
