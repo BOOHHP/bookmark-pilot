@@ -179,34 +179,45 @@ export function HealthPanel({ d, bookmarks, onBack, onBookmarksChanged }: Health
       </div>
       <p className="hint">{d.healthDesc}</p>
       <p className="hint">{d.healthPermNote}</p>
-      {checking && (
-        <div className="status-bar">
-          {d.healthChecking(progress.done, progress.total)}
-          <div className="progress-track">
-            <div
-              className="progress-fill"
-              style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }}
-            />
-          </div>
-        </div>
-      )}
       {msg && <div className="status-bar">{msg}</div>}
 
-      <div className="tree">
-        {dups !== null && dups.length === 0 && dead === null && (
-          <div className="empty">{d.healthNoIssues}</div>
+      <div className={`tree ${checking ? 'running' : ''}`}>
+        {checking ? (
+          <div className="classify-hero">
+            <div className="ch-phase">{d.healthCheckDead}</div>
+            <div className="ch-percent">
+              {progress.total > 0
+                ? `${Math.round((progress.done / progress.total) * 100)}%`
+                : '…'}
+            </div>
+            <div className="ch-track">
+              <div
+                className="ch-fill"
+                style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 8}%` }}
+              />
+            </div>
+            {progress.total > 0 && (
+              <div className="ch-count">{progress.done} / {progress.total}</div>
+            )}
+          </div>
+        ) : (
+          <>
+            {dups !== null && dups.length === 0 && dead === null && (
+              <div className="empty">{d.healthNoIssues}</div>
+            )}
+            {dups !== null && dups.length > 0 && renderSection(d.healthDupSection(dups.length), dups)}
+            {dead !== null &&
+              (dead.length > 0 ? (
+                <>
+                  {hardDead.length > 0 && renderSection(d.healthDeadSection(hardDead.length), hardDead)}
+                  {suspects.length > 0 &&
+                    renderSection(d.healthSuspectSection(suspects.length), suspects, true)}
+                </>
+              ) : (
+                <div className="empty">{d.healthNoIssues}</div>
+              ))}
+          </>
         )}
-        {dups !== null && dups.length > 0 && renderSection(d.healthDupSection(dups.length), dups)}
-        {dead !== null &&
-          (dead.length > 0 ? (
-            <>
-              {hardDead.length > 0 && renderSection(d.healthDeadSection(hardDead.length), hardDead)}
-              {suspects.length > 0 &&
-                renderSection(d.healthSuspectSection(suspects.length), suspects, true)}
-            </>
-          ) : (
-            <div className="empty">{d.healthNoIssues}</div>
-          ))}
       </div>
 
       {issues.length > 0 && (
