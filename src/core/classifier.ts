@@ -16,6 +16,56 @@ const ASSIGN_BATCH_SIZE = 60;
 
 type ProgressFn = (p: ClassifyProgress) => void;
 
+/** 标题信息量不足（过短/无意义/即域名），值得抓 meta 增强 */
+function isLowInfoTitle(b: FlatBookmark): boolean {
+  const t = b.title.trim();
+  if (!t || t.length < 5) return true;
+  if (/^(untitled|无标题|新标签页|new tab)$/i.test(t)) return true;
+  try {
+    const host = new URL(b.url).hostname;
+    if (t === host || t === b.url || t === host.replace(/^www\./, '')) return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+const META_FETCH_LIMIT = 40;
+const META_CONCURRENCY = 4;
+
+/** 对低信息量标题的书签抓取页面 meta（需 <all_urls> 权限，未授权则跳过） */
+async function enrichLowInfoBookmarks(
+  bookmarks: FlatBookmark[],
+): Promise<Map<string, string>> {
+  const enriched = new Map<string, string>();
+  try {
+    const granted = await chrome.permissions.contains({ origins: ['<all_urls>'] });
+    if (!granted) return enriched;
+  } catch {
+    return enriched;
+  }
+  const targets = bookmarks.filter(isLowInfoTitle).slice(0, META_FETCH_LIMIT);
+  let idx = 0;
+  const workers = Array.from({ length: META_CONCURRENCY }, async () => {
+    while (idx < targets.length) {
+      const b = targets[idx++];
+      try {
+        const meta = (await chrome.runtime.sendMessage({ type: 'fetchMeta', url: b.url })) as
+          | { title: string; description: string }
+          | null;
+        if (meta) {
+          const text = [meta.title, meta.description].filter(Boolean).join(' — ').slice(0, 120);
+          if (text) enriched.set(b.id, text);
+        }
+      } catch {
+        /* SW 异常则跳过 */
+      }
+    }
+  });
+  await Promise.all(workers);
+  return enriched;
+}
+
 /** 阶段一：批量打标（带缓存） */
 async function labelBookmarks(
   settings: Settings,
@@ -40,6 +90,9 @@ async function labelBookmarks(
   let done = total - pending.length;
   onProgress({ phase: 'labeling', done, total });
 
+  // 对标题无意义的书签抓页面 meta 补充语义（未授权则自动跳过）
+  const enriched = await enrichLowInfoBookmarks(pending);
+
   const batches: FlatBookmark[][] = [];
   for (let i = 0; i < pending.length; i += BATCH_SIZE) {
     batches.push(pending.slice(i, i + BATCH_SIZE));
@@ -54,7 +107,11 @@ async function labelBookmarks(
         } catch {
           /* ignore */
         }
-        return `- id:${b.id} | 标题:${b.title.slice(0, 80)} | 域名:${host} | 原文件夹:${b.folderPath || '无'}`;
+        const extra = enriched.get(b.id);
+        return (
+          `- id:${b.id} | 标题:${b.title.slice(0, 80)} | 域名:${host} | 原文件夹:${b.folderPath || '无'}` +
+          (extra ? ` | 页面描述:${extra}` : '')
+        );
       })
       .join('\n');
 
@@ -116,6 +173,7 @@ async function buildTree(
   settings: Settings,
   labels: Record<string, BookmarkLabel>,
   signal: AbortSignal,
+  existingTree?: CategoryNode[],
 ): Promise<CategoryNode[]> {
   // 统计 tag 频次作为输入，控制 token
   const tagCount = new Map<string, number>();
@@ -127,6 +185,13 @@ async function buildTree(
     .map(([t, c]) => `${t}(${c})`)
     .join(', ');
 
+  // 现有树结构作为约束：保留用户手动调整过的分类名与层级
+  const treeOutline = existingTree?.length
+    ? existingTree
+        .map((n) => (n.children?.length ? `${n.name}: ${n.children.map((c) => c.name).join('、')}` : n.name))
+        .join('\n')
+    : '';
+
   const content = await chat(
     settings,
     [
@@ -136,6 +201,12 @@ async function buildTree(
           '你是信息架构专家。根据标签及其出现次数，设计一个金字塔式书签分类树。' +
           '要求：顶层大类不超过 8 个；最多 2 层（大类→子类）；子类每层不超过 10 个；' +
           '数量少的标签合并进相近大类或"其他"。' +
+          (treeOutline
+            ? '用户已有以下分类结构（可能经过手动调整），请尽量沿用这些分类名和层级，' +
+              '仅在确有必要时增补新类：\n' +
+              treeOutline +
+              '\n\n' 
+            : '') +
           '只输出 JSON 数组，格式：[{"name":"大类名","children":[{"name":"子类名"}]}]，' +
           '没有子类的大类可省略 children。不要其他文字。',
       },
@@ -268,7 +339,9 @@ export async function classify(
   const labels = await labelBookmarks(settings, bookmarks, onProgress, signal);
 
   onProgress({ phase: 'building', done: 0, total: 1 });
-  const tree = await buildTree(settings, labels, signal);
+  // 重分类时把现有树（含用户手动调整）作为约束传入，尽量保留分类结构
+  const saved = await loadSavedResult();
+  const tree = await buildTree(settings, labels, signal, saved?.tree);
 
   await assignBookmarks(settings, tree, bookmarks, labels, onProgress, signal);
 

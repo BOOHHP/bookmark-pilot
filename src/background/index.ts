@@ -1,5 +1,5 @@
 // Service Worker：点击工具栏图标打开侧边栏 + 监听新书签 + 代理死链探测
-import { probeUrl } from '../core/probe';
+import { fetchPageMeta, probeUrl } from '../core/probe';
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
@@ -10,6 +10,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'probeUrl' && typeof msg.url === 'string') {
     probeUrl(msg.url).then(sendResponse);
     return true; // 异步响应
+  }
+  if (msg?.type === 'fetchMeta' && typeof msg.url === 'string') {
+    fetchPageMeta(msg.url).then(sendResponse);
+    return true;
   }
 });
 

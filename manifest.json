@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "BookmarkPilot 书签金字塔",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "用 LLM 理解你的书签，按金字塔结构智能分类，一键整理书签栏。",
   "icons": {
     "16": "icons/icon16.png",

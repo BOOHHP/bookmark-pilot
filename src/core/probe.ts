@@ -80,6 +80,36 @@ function inspectContent(originalUrl: string, finalUrl: string, html: string): Pr
   return { kind: 'ok', detail: '' };
 }
 
+/** 抓取页面 meta（用于低信息量标题的分类增强）；失败返回 null */
+export async function fetchPageMeta(
+  url: string,
+): Promise<{ title: string; description: string } | null> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 6_000);
+  try {
+    const resp = await fetch(url, {
+      method: 'GET',
+      signal: ctrl.signal,
+      redirect: 'follow',
+      credentials: 'include',
+    });
+    const ct = resp.headers.get('content-type') ?? '';
+    if (!resp.ok || !ct.includes('text/html')) return null;
+    const html = (await resp.text()).slice(0, 32768);
+    const title = /<title[^>]*>([^<]*)<\/title>/i.exec(html)?.[1]?.trim() ?? '';
+    const description =
+      /<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i.exec(html)?.[1]?.trim() ??
+      /<meta[^>]+content=["']([^"']*)["'][^>]+name=["']description["']/i.exec(html)?.[1]?.trim() ??
+      '';
+    if (!title && !description) return null;
+    return { title, description };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** 探测单条链接：协议层 + 内容层两级判定 */
 export async function probeUrl(url: string): Promise<ProbeResult> {
   const ctrl = new AbortController();

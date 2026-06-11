@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS, FONT_OPTIONS, PROVIDERS, fontCss, getProvider, type S
 import { loadSettings, saveSettings } from '../core/settings';
 import { testConnection, listModels } from '../core/llm';
 import { clearCache } from '../core/cache';
+import { downloadExport, importBundle } from '../core/transfer';
 import { applyColorMode, t } from '../core/i18n';
 import './styles.css';
 
@@ -53,6 +54,25 @@ function OptionsPage() {
     await saveSettings(settings);
     setStatus(d.statusSaved);
     setTimeout(() => setStatus(''), 2000);
+  };
+
+  const doImport = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const r = await importBundle(await file.text());
+        setSettings(await loadSettings());
+        setStatus(d.importOk(r.cacheEntries));
+      } catch {
+        setStatus(d.importFail);
+      }
+      setTimeout(() => setStatus(''), 4000);
+    };
+    input.click();
   };
 
   const test = async () => {
@@ -210,6 +230,15 @@ function OptionsPage() {
                 <h3>{d.cacheTitle}</h3>
                 <p className="hint">{d.cacheHint}</p>
                 <button className="btn" onClick={resetCache}>{d.clearCache}</button>
+              </div>
+
+              <div className="card">
+                <h3>{d.transferTitle}</h3>
+                <p className="hint">{d.transferHint}</p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn" onClick={() => downloadExport()}>{d.exportData}</button>
+                  <button className="btn" onClick={doImport}>{d.importData}</button>
+                </div>
               </div>
 
               <div className="actions">

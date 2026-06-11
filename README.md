@@ -26,6 +26,10 @@
 - ⚡ **Trial Mode & Cost Estimate** — try the first 20 bookmarks in seconds; see expected API request count before a full run; onboarding can be skipped entirely
 - ✨ **Animated Progress** — 3-step indicator, large percentage display, shimmering progress bar and flowing background while classifying
 - 🔍 **Smart Search** — match title, URL, AI summary and AI tags
+- 📤 **Export / Import** — back up classification result, label cache and settings (no API key) as JSON; restore after reinstalling or on another computer without re-spending API quota
+- 🏷️ **Meta Enrichment** — bookmarks with meaningless titles ("Untitled", bare domains) get their page title/description fetched for better classification (optional permission)
+- 🧩 **Structure-Preserving Re-classify** — re-classifying keeps your manually renamed/adjusted categories as constraints instead of starting from scratch
+- ☁️ **Settings Roaming** — appearance & provider preferences sync across devices via Chrome account (API key never syncs)
 - 🎨 **Themeable UI** — dark / light / system mode, custom accent color, fonts; whole UI derives from one accent color
 - 🌐 **i18n** — Chinese & English, auto-detected from browser
 - 💾 **Safety First** — automatic backup (exportable as standard Netscape HTML) before any change; URL-level label cache to avoid re-spending API quota
