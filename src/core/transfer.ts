@@ -29,14 +29,42 @@ export async function buildExport(): Promise<ExportBundle> {
   };
 }
 
-/** 触发下载导出文件 */
+/** 触发导出：优先弹出系统保存对话框让用户自选位置，不支持时回退为直接下载 */
 export async function downloadExport(): Promise<void> {
   const bundle = await buildExport();
   const json = JSON.stringify(bundle, null, 2);
+  const filename = `bookmark-pilot-data-${new Date().toISOString().slice(0, 10)}.json`;
+
+  const picker = (
+    window as unknown as {
+      showSaveFilePicker?: (opts: {
+        suggestedName?: string;
+        types?: { description: string; accept: Record<string, string[]> }[];
+      }) => Promise<{ createWritable: () => Promise<{ write: (d: string) => Promise<void>; close: () => Promise<void> }> }>;
+    }
+  ).showSaveFilePicker;
+
+  if (picker) {
+    try {
+      const handle = await picker({
+        suggestedName: filename,
+        types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(json);
+      await writable.close();
+      return;
+    } catch (e) {
+      // 用户取消保存：不再触发回退下载
+      if ((e as Error).name === 'AbortError') return;
+      // 其他异常（权限等）走回退
+    }
+  }
+
   const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
   const a = document.createElement('a');
   a.href = url;
-  a.download = `bookmark-pilot-data-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
 }
