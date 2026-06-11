@@ -21,7 +21,7 @@
 - ✏️ **Fully Editable Results** — double-click to rename folders, delete categories, drag & drop bookmarks between categories before applying
 - ↩️ **One-Click Undo** — every apply records original positions; undo restores everything and removes the AI folder
 - 🔔 **Auto-Categorize New Bookmarks** — after organizing, new bookmarks get a badge + banner; one click slots them into the existing tree incrementally
-- 🩺 **Bookmark Health Check** — find duplicates (local, free) and dead links (optional permission), batch clean-up
+- 🩺 **Bookmark Health Check** — find duplicates (local, free) and broken links with two-tier detection: protocol-level dead links (404/410/unreachable) and content-level "possibly broken" pages (soft 404, login wall, redirects to homepage) — batch clean-up with confidence-aware selection
 - ⚡ **Trial Mode & Cost Estimate** — try the first 20 bookmarks in seconds; see expected API request count before a full run
 - 🔍 **Smart Search** — match title, URL, AI summary and AI tags
 - 🎨 **Themeable UI** — dark / light / system mode, custom accent color, fonts; whole UI derives from one accent color

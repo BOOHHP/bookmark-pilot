@@ -226,6 +226,12 @@ button.danger { color: var(--danger); }
   color: var(--danger);
   flex-shrink: 0;
 }
+.health-detail.suspect { color: #d9a93f; }
+.health-section-hint {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 2px 8px 6px;
+}
 
 /* v0.3 首次引导 */
 .onboarding {

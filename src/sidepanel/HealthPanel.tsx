@@ -57,7 +57,13 @@ export function HealthPanel({ d, bookmarks, onBack, onBookmarksChanged }: Health
 
   const issues = [...(dups ?? []), ...(dead ?? [])];
 
+  const hardDead = dead?.filter((i) => i.kind === 'dead') ?? [];
+  const suspects = dead?.filter((i) => i.kind === 'suspect') ?? [];
+
   const selectAll = () => setSelected(new Set(issues.map((i) => i.bookmark.id)));
+  /** 只选高置信项：重复 + 确定死链，不含疑似 */
+  const selectSafe = () =>
+    setSelected(new Set([...(dups ?? []), ...hardDead].map((i) => i.bookmark.id)));
 
   const deleteSelected = async () => {
     const n = await removeBookmarks([...selected]);
@@ -68,9 +74,23 @@ export function HealthPanel({ d, bookmarks, onBack, onBookmarksChanged }: Health
     onBookmarksChanged();
   };
 
-  const renderSection = (title: string, items: HealthIssue[]) => (
+  const reasonText = (i: HealthIssue): string => {
+    if (i.kind === 'duplicate') return '♻️';
+    switch (i.detail) {
+      case 'login-wall': return d.reasonLoginWall;
+      case 'redirect-home': return d.reasonRedirectHome;
+      case 'soft-404': return d.reasonSoft404;
+      case 'empty-page': return d.reasonEmptyPage;
+      case 'timeout': return d.reasonTimeout;
+      case 'unreachable': return d.reasonUnreachable;
+      default: return i.detail; // HTTP 状态码
+    }
+  };
+
+  const renderSection = (title: string, items: HealthIssue[], suspect?: boolean) => (
     <div className="health-section">
       <div className="health-section-title">{title}</div>
+      {suspect && <div className="health-section-hint">{d.suspectHint}</div>}
       {items.map((i) => (
         <label key={i.bookmark.id} className="health-row">
           <input
@@ -81,7 +101,19 @@ export function HealthPanel({ d, bookmarks, onBack, onBookmarksChanged }: Health
           <span className="bm-title" title={i.bookmark.url}>
             {i.bookmark.title}
           </span>
-          <span className="health-detail">{i.kind === 'dead' ? i.detail : '♻️'}</span>
+          <span className={`health-detail ${suspect ? 'suspect' : ''}`}>{reasonText(i)}</span>
+          {suspect && (
+            <button
+              className="icon-btn"
+              title={i.bookmark.url}
+              onClick={(e) => {
+                e.preventDefault();
+                chrome.tabs.create({ url: i.bookmark.url });
+              }}
+            >
+              ↗
+            </button>
+          )}
         </label>
       ))}
     </div>
@@ -119,7 +151,11 @@ export function HealthPanel({ d, bookmarks, onBack, onBookmarksChanged }: Health
         {dups !== null && dups.length > 0 && renderSection(d.healthDupSection(dups.length), dups)}
         {dead !== null &&
           (dead.length > 0 ? (
-            renderSection(d.healthDeadSection(dead.length), dead)
+            <>
+              {hardDead.length > 0 && renderSection(d.healthDeadSection(hardDead.length), hardDead)}
+              {suspects.length > 0 &&
+                renderSection(d.healthSuspectSection(suspects.length), suspects, true)}
+            </>
           ) : (
             <div className="empty">{d.healthNoIssues}</div>
           ))}
@@ -127,6 +163,7 @@ export function HealthPanel({ d, bookmarks, onBack, onBookmarksChanged }: Health
 
       {issues.length > 0 && (
         <div className="toolbar">
+          <button onClick={selectSafe}>{d.selectSafe}</button>
           <button onClick={selectAll}>{d.selectAll}</button>
           <button className="danger" disabled={selected.size === 0} onClick={deleteSelected}>
             {d.deleteSelected(selected.size)}

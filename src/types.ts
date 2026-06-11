@@ -186,8 +186,13 @@ export interface ApplyRecord {
 /** 健康检查问题项 */
 export interface HealthIssue {
   bookmark: FlatBookmark;
-  kind: 'duplicate' | 'dead';
-  /** 重复项：与哪条书签重复（保留项的 id）；死链：HTTP 状态或错误信息 */
+  /**
+   * duplicate: 重复书签
+   * dead: 协议层死链（404/410/无法访问，高置信）
+   * suspect: 内容型疑似失效（200 但软 404 / 需登录 / 跳首页，需人工确认）
+   */
+  kind: 'duplicate' | 'dead' | 'suspect';
+  /** 重复项：保留项的 id；死链/疑似：原因说明 */
   detail: string;
 }
 
