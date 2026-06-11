@@ -282,3 +282,27 @@ export async function loadSavedResult(): Promise<ClassifyResult | null> {
   const data = await chrome.storage.local.get('classifyResult');
   return data.classifyResult ?? null;
 }
+
+/**
+ * 增量归类：把若干新书签打标后归入现有分类树（不重建树）。
+ * 返回更新后的 ClassifyResult（已持久化）。
+ */
+export async function classifyIncremental(
+  settings: Settings,
+  newBookmarks: FlatBookmark[],
+  existing: ClassifyResult,
+  onProgress: ProgressFn,
+  signal: AbortSignal,
+): Promise<ClassifyResult> {
+  const labels = await labelBookmarks(settings, newBookmarks, onProgress, signal);
+  const tree: CategoryNode[] = JSON.parse(JSON.stringify(existing.tree));
+  await assignBookmarks(settings, tree, newBookmarks, labels, onProgress, signal);
+  const result: ClassifyResult = {
+    tree,
+    labels: { ...existing.labels, ...labels },
+    createdAt: Date.now(),
+  };
+  await chrome.storage.local.set({ classifyResult: result });
+  onProgress({ phase: 'done', done: newBookmarks.length, total: newBookmarks.length });
+  return result;
+}

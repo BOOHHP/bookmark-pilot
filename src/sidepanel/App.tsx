@@ -5,20 +5,24 @@ import type {
   ClassifyResult,
   FlatBookmark,
 } from '../types';
-import { classify, loadSavedResult } from '../core/classifier';
+import { classify, classifyIncremental, loadSavedResult } from '../core/classifier';
 import {
   applyToBookmarks,
   backupBookmarks,
   backupToHtml,
   dedupeByUrl,
+  getApplyRecord,
   getBackup,
   getFlatBookmarks,
   planApply,
+  undoApply,
 } from '../core/bookmarks';
+import { deleteNode, moveBookmark, renameNode } from '../core/treeEdit';
 import { loadSettings } from '../core/settings';
 import { DEFAULT_SETTINGS, fontCss, type Settings } from '../types';
 import { applyColorMode, t } from '../core/i18n';
-import { Tree } from './Tree';
+import { Tree, type TreeEditHandlers } from './Tree';
+import { HealthPanel } from './HealthPanel';
 
 /** 应用外观设置到根元素 CSS 变量 + 颜色模式 */
 function applyAppearance(s: Settings) {
@@ -38,6 +42,11 @@ export function App() {
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [applying, setApplying] = useState(false);
   const [hasBackup, setHasBackup] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [undoing, setUndoing] = useState(false);
+  const [pendingIds, setPendingIds] = useState<string[]>([]);
+  const [view, setView] = useState<'tree' | 'health'>('tree');
+  const [notice, setNotice] = useState('');
   const [uiSettings, setUiSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const abortRef = useRef<AbortController | null>(null);
   const d = t(uiSettings.language);
@@ -46,6 +55,10 @@ export function App() {
     getFlatBookmarks().then(setBookmarks);
     loadSavedResult().then(setResult);
     getBackup().then((b) => setHasBackup(!!b));
+    getApplyRecord().then((r) => setCanUndo(!!r));
+    chrome.storage.local
+      .get('pendingNewBookmarks')
+      .then((data) => setPendingIds(data.pendingNewBookmarks ?? []));
     // 外观 + 语言：初始应用 + 监听设置变更实时生效
     loadSettings().then((s) => {
       setUiSettings(s);
@@ -56,6 +69,9 @@ export function App() {
         const s = changes.settings.newValue as Settings;
         setUiSettings(s);
         applyAppearance(s);
+      }
+      if (area === 'local' && changes.pendingNewBookmarks) {
+        setPendingIds(changes.pendingNewBookmarks.newValue ?? []);
       }
     };
     chrome.storage.onChanged.addListener(onChanged);
@@ -111,6 +127,7 @@ export function App() {
       await backupBookmarks();
       setHasBackup(true);
       await applyToBookmarks(result.tree);
+      setCanUndo(true);
       setShowApplyModal(false);
       // 应用后书签 id 不变，但树结构变了，刷新列表
       setBookmarks(await getFlatBookmarks());
@@ -120,6 +137,83 @@ export function App() {
       setApplying(false);
     }
   }, [result]);
+
+  const doUndo = useCallback(async () => {
+    if (!confirm(d.undoConfirm)) return;
+    setUndoing(true);
+    setError('');
+    try {
+      const n = await undoApply();
+      setCanUndo(false);
+      setNotice(d.undoDone(n));
+      setBookmarks(await getFlatBookmarks());
+    } catch (e) {
+      setError(`${d.applyFailed}: ${(e as Error).message}`);
+    } finally {
+      setUndoing(false);
+    }
+  }, [d]);
+
+  /** 树编辑：更新 state 并持久化 */
+  const updateTree = useCallback((mutate: (tree: CategoryNode[]) => CategoryNode[]) => {
+    setResult((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, tree: mutate(prev.tree) };
+      chrome.storage.local.set({ classifyResult: next });
+      return next;
+    });
+  }, []);
+
+  const editHandlers: TreeEditHandlers = useMemo(
+    () => ({
+      onRename: (path, name) => updateTree((tree) => renameNode(tree, path, name)),
+      onDelete: (path) => updateTree((tree) => deleteNode(tree, path)),
+      onMoveBookmark: (id, toPath) => updateTree((tree) => moveBookmark(tree, id, toPath)),
+      deleteConfirmText: d.deleteFolderConfirm,
+    }),
+    [updateTree, d],
+  );
+
+  /** 增量归类新书签 */
+  const classifyPending = useCallback(async () => {
+    if (!result || pendingIds.length === 0) return;
+    setError('');
+    const settings = await loadSettings();
+    if (!settings.apiKey) {
+      setError(d.needApiKey);
+      chrome.runtime.openOptionsPage();
+      return;
+    }
+    const all = await getFlatBookmarks();
+    setBookmarks(all);
+    const byId = new Map(all.map((b) => [b.id, b]));
+    const fresh = pendingIds.map((id) => byId.get(id)).filter((b): b is NonNullable<typeof b> => !!b);
+    if (fresh.length === 0) {
+      await chrome.storage.local.set({ pendingNewBookmarks: [] });
+      chrome.action.setBadgeText({ text: '' });
+      return;
+    }
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    try {
+      const r = await classifyIncremental(settings, fresh, result, setProgress, ctrl.signal);
+      setResult(r);
+      await chrome.storage.local.set({ pendingNewBookmarks: [] });
+      chrome.action.setBadgeText({ text: '' });
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') {
+        setError(`${d.classifyFailed}: ${(e as Error).message}`);
+        setProgress({ phase: 'error', done: 0, total: 0 });
+      } else {
+        setProgress({ phase: 'idle', done: 0, total: 0 });
+      }
+    }
+  }, [result, pendingIds, d]);
+
+  const dismissPending = useCallback(async () => {
+    await chrome.storage.local.set({ pendingNewBookmarks: [] });
+    chrome.action.setBadgeText({ text: '' });
+  }, []);
 
   const downloadBackup = useCallback(async () => {
     const backup = await getBackup();
@@ -162,88 +256,125 @@ export function App() {
 
   return (
     <div className="app">
-      <div className="toolbar">
-        <input
-          className="search"
-          placeholder={d.searchPlaceholder}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+      {view === 'health' ? (
+        <HealthPanel
+          d={d}
+          bookmarks={bookmarks}
+          onBack={() => setView('tree')}
+          onBookmarksChanged={() => getFlatBookmarks().then(setBookmarks)}
         />
-        {running ? (
-          <button className="danger" onClick={cancelClassify}>{d.cancel}</button>
-        ) : (
-          <button className="primary" onClick={startClassify}>
-            {result ? d.reclassify : d.classify}
-          </button>
-        )}
-        {result && !running && (
-          <button className="primary" onClick={() => setShowApplyModal(true)}>
-            {d.applyToBookmarks}
-          </button>
-        )}
-        <button onClick={() => chrome.runtime.openOptionsPage()}>⚙️</button>
-      </div>
+      ) : (
+        <>
+          <div className="toolbar">
+            <input
+              className="search"
+              placeholder={d.searchPlaceholder}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {running ? (
+              <button className="danger" onClick={cancelClassify}>{d.cancel}</button>
+            ) : (
+              <button className="primary" onClick={startClassify}>
+                {result ? d.reclassify : d.classify}
+              </button>
+            )}
+            {result && !running && (
+              <button className="primary" onClick={() => setShowApplyModal(true)}>
+                {d.applyToBookmarks}
+              </button>
+            )}
+            <button onClick={() => setView('health')} title={d.healthTitle}>🩺</button>
+            <button onClick={() => chrome.runtime.openOptionsPage()}>⚙️</button>
+          </div>
 
-      {(running || progress.phase === 'done') && (
-        <div className="status-bar">
-          {progress.phase === 'labeling' && d.phaseLabeling}
-          {progress.phase === 'building' && d.phaseBuilding}
-          {progress.phase === 'assigning' && d.phaseAssigning}
-          {progress.phase === 'done' && d.phaseDone}
-          {progress.phase === 'error' && d.phaseError}
-          {progress.total > 0 && ` (${progress.done}/${progress.total})`}
-          {running && (
-            <div className="progress-track">
-              <div
-                className="progress-fill"
-                style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }}
-              />
+          {pendingIds.length > 0 && result && !running && (
+            <div className="pending-banner">
+              <span>{d.pendingBanner(pendingIds.length)}</span>
+              <button className="primary" onClick={classifyPending}>{d.classifyPending}</button>
+              <button onClick={dismissPending}>{d.dismissPending}</button>
             </div>
           )}
-        </div>
-      )}
 
-      {error && <div className="error-msg">{error}</div>}
-
-      <div className="tree">
-        {filteredTree ? (
-          <Tree nodes={filteredTree} bookmarkById={bookmarkById} labels={result!.labels} />
-        ) : (
-          <div className="empty">
-            {d.emptyLine1(bookmarks.length)}
-            <br />
-            {d.emptyLine2}
-          </div>
-        )}
-      </div>
-
-      {hasBackup && (
-        <div className="status-bar">
-          <a href="#" onClick={(e) => { e.preventDefault(); downloadBackup(); }}>
-            {d.downloadBackup}
-          </a>
-        </div>
-      )}
-
-      {showApplyModal && applyPlan && (
-        <div className="modal-backdrop" onClick={() => !applying && setShowApplyModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>{d.applyModalTitle}</h3>
-            <div>
-              {d.applyModalDesc}
-              <br />• {d.applyFolders(applyPlan.folderCount)}
-              <br />• {d.applyMoves(applyPlan.moveCount)}
-              <br />
-              <small>{d.applyNote}</small>
+          {(running || progress.phase === 'done') && (
+            <div className="status-bar">
+              {progress.phase === 'labeling' && d.phaseLabeling}
+              {progress.phase === 'building' && d.phaseBuilding}
+              {progress.phase === 'assigning' && d.phaseAssigning}
+              {progress.phase === 'done' && d.phaseDone}
+              {progress.phase === 'error' && d.phaseError}
+              {progress.total > 0 && ` (${progress.done}/${progress.total})`}
+              {running && (
+                <div className="progress-track">
+                  <div
+                    className="progress-fill"
+                    style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }}
+                  />
+                </div>
+              )}
             </div>
-            <div className="actions">
-              <button onClick={() => setShowApplyModal(false)} disabled={applying}>{d.cancel}</button>
-              <button className="primary" onClick={doApply} disabled={applying}>
-                {applying ? d.applying : d.confirmApply}
-              </button>
-            </div>
+          )}
+
+          {error && <div className="error-msg">{error}</div>}
+          {notice && <div className="status-bar">{notice}</div>}
+
+          {result && !running && !search.trim() && (
+            <div className="edit-hint">{d.editHint}</div>
+          )}
+
+          <div className="tree">
+            {filteredTree ? (
+              <Tree
+                nodes={filteredTree}
+                bookmarkById={bookmarkById}
+                labels={result!.labels}
+                edit={search.trim() ? undefined : editHandlers}
+              />
+            ) : (
+              <div className="empty">
+                {d.emptyLine1(bookmarks.length)}
+                <br />
+                {d.emptyLine2}
+              </div>
+            )}
           </div>
-        </div>
+
+          {(hasBackup || canUndo) && (
+            <div className="status-bar footer-actions">
+              {canUndo && (
+                <button className="danger" onClick={doUndo} disabled={undoing}>
+                  {undoing ? d.undoing : d.undoApply}
+                </button>
+              )}
+              {hasBackup && (
+                <a href="#" onClick={(e) => { e.preventDefault(); downloadBackup(); }}>
+                  {d.downloadBackup}
+                </a>
+              )}
+            </div>
+          )}
+
+          {showApplyModal && applyPlan && (
+            <div className="modal-backdrop" onClick={() => !applying && setShowApplyModal(false)}>
+              <div className="modal" onClick={(e) => e.stopPropagation()}>
+                <h3>{d.applyModalTitle}</h3>
+                <div>
+                  {d.applyModalDesc}
+                  <br />• {d.applyFolders(applyPlan.folderCount)}
+                  <br />• {d.applyMoves(applyPlan.moveCount)}
+                  <br />
+                  <small>{d.applyNote}</small>
+                </div>
+                <div className="actions">
+                  <button onClick={() => setShowApplyModal(false)} disabled={applying}>{d.cancel}</button>
+                  <button className="primary" onClick={doApply} disabled={applying}>
+                    {applying ? d.applying : d.confirmApply}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

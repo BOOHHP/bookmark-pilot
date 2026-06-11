@@ -125,12 +125,107 @@ button.danger { color: var(--danger); }
   user-select: none;
 }
 .folder-row:hover { background: var(--accent-soft); }
+.folder-row.drag-over {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  outline: 1px dashed var(--accent);
+}
 .folder-row .count {
   font-weight: 400;
   color: var(--muted);
   font-size: 12px;
 }
 .folder-children { margin-left: 16px; }
+
+/* v0.2 编辑模式 */
+.folder-actions {
+  margin-left: auto;
+  display: none;
+  gap: 2px;
+}
+.folder-row:hover .folder-actions { display: inline-flex; }
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 3px;
+  opacity: 0.7;
+}
+.icon-btn:hover { opacity: 1; }
+.rename-input {
+  flex: 1;
+  padding: 2px 6px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: inherit;
+  font-family: inherit;
+}
+.edit-hint {
+  padding: 4px 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* v0.2 新书签横幅 */
+.pending-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--accent) 18%, var(--panel));
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.pending-banner span { flex: 1; }
+
+/* v0.2 撤销 / 底部操作 */
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* v0.2 健康检查 */
+.health-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.health-panel .hint {
+  margin: 4px 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.health-section { margin-bottom: 12px; }
+.health-section-title {
+  font-weight: 600;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.health-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+}
+.health-row:hover { background: var(--accent-soft); }
+.health-row .bm-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.health-detail {
+  font-size: 11px;
+  color: var(--danger);
+  flex-shrink: 0;
+}
 
 .bookmark-row {
   display: flex;

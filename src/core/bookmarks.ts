@@ -1,8 +1,9 @@
 // 书签读取、拍平、备份与回写
-import type { CategoryNode, FlatBookmark, BookmarkBackup } from '../types';
+import type { ApplyRecord, CategoryNode, FlatBookmark, BookmarkBackup } from '../types';
 
 const APPLY_FOLDER_TITLE = '✨ AI 整理';
 const BACKUP_KEY = 'bookmarkBackup';
+const APPLY_RECORD_KEY = 'applyRecord';
 
 /** 读取并拍平整棵书签树（只保留有 url 的项，过滤无效协议） */
 export async function getFlatBookmarks(): Promise<FlatBookmark[]> {
@@ -106,7 +107,7 @@ export function planApply(tree: CategoryNode[]): ApplyPlan {
 /**
  * 应用分类树到书签：
  * 在书签栏下创建「✨ AI 整理」根文件夹，按树结构建文件夹并移动书签。
- * 调用前必须先 backupBookmarks()。
+ * 调用前必须先 backupBookmarks()。同时记录每条书签原位置供撤销。
  */
 export async function applyToBookmarks(
   tree: CategoryNode[],
@@ -129,13 +130,21 @@ export async function applyToBookmarks(
     : APPLY_FOLDER_TITLE;
   const rootFolder = await chrome.bookmarks.create({ parentId: bar.id, title: rootTitle });
 
+  const record: ApplyRecord = { createdAt: Date.now(), rootFolderId: rootFolder.id, moves: [] };
+
   const createLevel = async (nodes: CategoryNode[], parentId: string) => {
     for (const n of nodes) {
       const folder = await chrome.bookmarks.create({ parentId, title: n.name });
       if (n.children) await createLevel(n.children, folder.id);
       for (const id of n.bookmarkIds ?? []) {
         try {
+          const [node] = await chrome.bookmarks.get(id);
           await chrome.bookmarks.move(id, { parentId: folder.id });
+          record.moves.push({
+            id,
+            oldParentId: node.parentId ?? bar.id,
+            oldIndex: node.index ?? 0,
+          });
         } catch {
           // 书签可能已被用户删除，跳过
         }
@@ -145,4 +154,41 @@ export async function applyToBookmarks(
     }
   };
   await createLevel(tree, rootFolder.id);
+  await chrome.storage.local.set({ [APPLY_RECORD_KEY]: record });
+}
+
+export async function getApplyRecord(): Promise<ApplyRecord | null> {
+  const data = await chrome.storage.local.get(APPLY_RECORD_KEY);
+  return data[APPLY_RECORD_KEY] ?? null;
+}
+
+/**
+ * 一键撤销上次应用：把每条书签移回原位置，并删除创建的 AI 整理文件夹。
+ * 返回成功移回的数量。
+ */
+export async function undoApply(
+  onProgress?: (done: number, total: number) => void,
+): Promise<number> {
+  const record = await getApplyRecord();
+  if (!record) return 0;
+  let restored = 0;
+  // 倒序移回，尽量还原 index 顺序
+  const moves = [...record.moves].reverse();
+  for (let i = 0; i < moves.length; i++) {
+    const m = moves[i];
+    try {
+      await chrome.bookmarks.move(m.id, { parentId: m.oldParentId, index: m.oldIndex });
+      restored++;
+    } catch {
+      // 原文件夹或书签已不存在，跳过
+    }
+    onProgress?.(i + 1, moves.length);
+  }
+  try {
+    await chrome.bookmarks.removeTree(record.rootFolderId);
+  } catch {
+    // 文件夹可能已被用户删除
+  }
+  await chrome.storage.local.remove(APPLY_RECORD_KEY);
+  return restored;
 }

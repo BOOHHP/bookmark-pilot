@@ -173,3 +173,27 @@ export interface BookmarkBackup {
   createdAt: number;
   tree: chrome.bookmarks.BookmarkTreeNode[];
 }
+
+/** 应用操作记录（用于一键撤销） */
+export interface ApplyRecord {
+  createdAt: number;
+  /** 应用时创建的根文件夹 id（撤销时整体删除） */
+  rootFolderId: string;
+  /** 每条被移动书签的原位置 */
+  moves: { id: string; oldParentId: string; oldIndex: number }[];
+}
+
+/** 健康检查问题项 */
+export interface HealthIssue {
+  bookmark: FlatBookmark;
+  kind: 'duplicate' | 'dead';
+  /** 重复项：与哪条书签重复（保留项的 id）；死链：HTTP 状态或错误信息 */
+  detail: string;
+}
+
+/** 健康检查进度 */
+export interface HealthProgress {
+  phase: 'idle' | 'checking' | 'done';
+  done: number;
+  total: number;
+}

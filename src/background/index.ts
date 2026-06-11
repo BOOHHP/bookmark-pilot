@@ -1,6 +1,43 @@
-// Service Worker：点击工具栏图标打开侧边栏
+// Service Worker：点击工具栏图标打开侧边栏 + 监听新书签
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
 });
+
+const PENDING_KEY = 'pendingNewBookmarks';
+
+async function getPending(): Promise<string[]> {
+  const data = await chrome.storage.local.get(PENDING_KEY);
+  return data[PENDING_KEY] ?? [];
+}
+
+async function setPending(ids: string[]): Promise<void> {
+  await chrome.storage.local.set({ [PENDING_KEY]: ids });
+  await chrome.action.setBadgeText({ text: ids.length ? String(ids.length) : '' });
+  if (ids.length) await chrome.action.setBadgeBackgroundColor({ color: '#7c9a72' });
+}
+
+// 新书签 → 加入待归类列表（仅 http/https，且已有分类结果时才提示）
+chrome.bookmarks.onCreated.addListener(async (id, node) => {
+  if (!node.url || !/^https?:/.test(node.url)) return;
+  const { classifyResult } = await chrome.storage.local.get('classifyResult');
+  if (!classifyResult) return;
+  const pending = await getPending();
+  if (!pending.includes(id)) {
+    pending.push(id);
+    await setPending(pending);
+  }
+});
+
+// 书签被删除 → 从待归类列表移除
+chrome.bookmarks.onRemoved.addListener(async (id) => {
+  const pending = await getPending();
+  const next = pending.filter((p) => p !== id);
+  if (next.length !== pending.length) await setPending(next);
+});
+
+// 启动时同步角标
+getPending().then((ids) =>
+  chrome.action.setBadgeText({ text: ids.length ? String(ids.length) : '' }),
+);
 
 export {};
