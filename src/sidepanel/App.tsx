@@ -75,12 +75,44 @@ export function App() {
       }
     };
     chrome.storage.onChanged.addListener(onChanged);
+    // 浏览器中删除/修改书签时，同步刷新侧边栏
+    const onBmRemoved = (id: string) => {
+      getFlatBookmarks().then(setBookmarks);
+      // 从分类树和标签中剔除该书签并持久化
+      setResult((prev) => {
+        if (!prev) return prev;
+        const pruneId = (nodes: CategoryNode[]): boolean => {
+          let changed = false;
+          for (const n of nodes) {
+            const i = n.bookmarkIds?.indexOf(id) ?? -1;
+            if (i >= 0) {
+              n.bookmarkIds!.splice(i, 1);
+              changed = true;
+            }
+            if (n.children && pruneId(n.children)) changed = true;
+          }
+          return changed;
+        };
+        const tree: CategoryNode[] = JSON.parse(JSON.stringify(prev.tree));
+        if (!pruneId(tree) && !prev.labels[id]) return prev;
+        const labels = { ...prev.labels };
+        delete labels[id];
+        const next = { ...prev, tree, labels };
+        chrome.storage.local.set({ classifyResult: next });
+        return next;
+      });
+    };
+    const onBmChanged = () => getFlatBookmarks().then(setBookmarks);
+    chrome.bookmarks.onRemoved.addListener(onBmRemoved);
+    chrome.bookmarks.onChanged.addListener(onBmChanged);
     // 系统深浅色变化时重新应用（system 模式）
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const onScheme = () => loadSettings().then((s) => applyColorMode(s.colorMode));
     mq.addEventListener('change', onScheme);
     return () => {
       chrome.storage.onChanged.removeListener(onChanged);
+      chrome.bookmarks.onRemoved.removeListener(onBmRemoved);
+      chrome.bookmarks.onChanged.removeListener(onBmChanged);
       mq.removeEventListener('change', onScheme);
     };
   }, []);
