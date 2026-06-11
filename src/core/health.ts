@@ -45,6 +45,11 @@ async function probe(url: string): Promise<ProbeResult> {
   }
 }
 
+/** 重新检测单条链接（登录后复查疑似项） */
+export async function recheckUrl(url: string): Promise<ProbeResult> {
+  return probe(url);
+}
+
 /** 死链检测：并发探测全部书签，返回死链与疑似失效项 */
 export async function findDeadLinks(
   bookmarks: FlatBookmark[],

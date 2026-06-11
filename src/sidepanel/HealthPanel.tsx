@@ -4,6 +4,7 @@ import {
   findDeadLinks,
   findDuplicates,
   hasAllUrlsPermission,
+  recheckUrl,
   removeBookmarks,
   requestAllUrlsPermission,
 } from '../core/health';
@@ -22,6 +23,7 @@ export function HealthPanel({ d, bookmarks, onBack, onBookmarksChanged }: Health
   const [progress, setProgress] = useState<HealthProgress>({ phase: 'idle', done: 0, total: 0 });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [msg, setMsg] = useState('');
+  const [rechecking, setRechecking] = useState<Set<string>>(new Set());
   const abortRef = useRef<AbortController | null>(null);
 
   const checking = progress.phase === 'checking';
@@ -53,6 +55,39 @@ export function HealthPanel({ d, bookmarks, onBack, onBookmarksChanged }: Health
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  };
+
+  /** 重检单条（登录后复查）：变为 ok 则从列表移除，否则更新原因 */
+  const recheckOne = async (issue: HealthIssue) => {
+    const id = issue.bookmark.id;
+    setRechecking((prev) => new Set(prev).add(id));
+    try {
+      const r = await recheckUrl(issue.bookmark.url);
+      setDead((prev) => {
+        if (!prev) return prev;
+        if (r.kind === 'ok') {
+          return prev.filter((i) => i.bookmark.id !== id);
+        }
+        const kind = r.kind; // 'dead' | 'suspect'
+        return prev.map((i) =>
+          i.bookmark.id === id ? { ...i, kind, detail: r.detail } : i,
+        );
+      });
+      if (r.kind === 'ok') {
+        setSelected((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        setMsg(d.recheckOk(issue.bookmark.title));
+      }
+    } finally {
+      setRechecking((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
   };
 
   const issues = [...(dups ?? []), ...(dead ?? [])];
@@ -103,16 +138,29 @@ export function HealthPanel({ d, bookmarks, onBack, onBookmarksChanged }: Health
           </span>
           <span className={`health-detail ${suspect ? 'suspect' : ''}`}>{reasonText(i)}</span>
           {suspect && (
-            <button
-              className="icon-btn"
-              title={i.bookmark.url}
-              onClick={(e) => {
-                e.preventDefault();
-                chrome.tabs.create({ url: i.bookmark.url });
-              }}
-            >
-              ↗
-            </button>
+            <>
+              <button
+                className="icon-btn"
+                title={d.recheckTip}
+                disabled={rechecking.has(i.bookmark.id)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  recheckOne(i);
+                }}
+              >
+                {rechecking.has(i.bookmark.id) ? '⏳' : '🔄'}
+              </button>
+              <button
+                className="icon-btn"
+                title={i.bookmark.url}
+                onClick={(e) => {
+                  e.preventDefault();
+                  chrome.tabs.create({ url: i.bookmark.url });
+                }}
+              >
+                ↗
+              </button>
+            </>
           )}
         </label>
       ))}

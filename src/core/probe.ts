@@ -89,7 +89,9 @@ export async function probeUrl(url: string): Promise<ProbeResult> {
       method: 'GET',
       signal: ctrl.signal,
       redirect: 'follow',
-      credentials: 'omit',
+      // 携带 Cookie：用户在浏览器中登录过的站点探测时生效，
+      // 避免已登录的页面被误报为「需登录」
+      credentials: 'include',
     });
 
     // —— 协议层 ——
