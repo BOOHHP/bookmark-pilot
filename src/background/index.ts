@@ -1,6 +1,16 @@
-// Service Worker：点击工具栏图标打开侧边栏 + 监听新书签
+// Service Worker：点击工具栏图标打开侧边栏 + 监听新书签 + 代理死链探测
+import { probeUrl } from '../core/probe';
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
+});
+
+// 死链探测在 SW 中执行：SW 无 DOM，不会触发被测站点的 preload/CSP 噪音
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.type === 'probeUrl' && typeof msg.url === 'string') {
+    probeUrl(msg.url).then(sendResponse);
+    return true; // 异步响应
+  }
 });
 
 const PENDING_KEY = 'pendingNewBookmarks';

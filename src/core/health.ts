@@ -1,8 +1,10 @@
 // 书签健康检查：重复检测（本地）+ 死链检测（需可选 host 权限）
+// 死链探测在 background service worker 中执行（src/core/probe.ts），
+// 避免 sidepanel 文档上下文触发被测站点的 preload/CSP 报错噪音。
 import type { FlatBookmark, HealthIssue, HealthProgress } from '../types';
+import type { ProbeResult } from './probe';
 
 const DEAD_CHECK_CONCURRENCY = 8;
-const DEAD_CHECK_TIMEOUT = 10_000;
 
 /** 重复检测：同一规范化 URL 出现多次，第一条视为保留项 */
 export function findDuplicates(bookmarks: FlatBookmark[]): HealthIssue[] {
@@ -30,131 +32,16 @@ export async function hasAllUrlsPermission(): Promise<boolean> {
   return chrome.permissions.contains({ origins: ['<all_urls>'] });
 }
 
-/** 探测结果 */
-interface ProbeResult {
-  kind: 'ok' | 'dead' | 'suspect';
-  detail: string;
-}
-
-/** 软 404 / 失效内容关键词（标题或正文命中即疑似） */
-const SOFT_DEAD_PATTERNS: RegExp[] = [
-  // 中文
-  /页面不存在|页面未找到|找不到(该|此|你要的)?页面|页面已删除|内容(不存在|已删除|已下架|已失效)/,
-  /商品(不存在|已下架|已失效|已删除)|宝贝(不存在|已下架)|店铺不存在/,
-  /(文章|视频|帖子|资源)(不存在|已删除|已下架|已失效)/,
-  /(请|需要?)登录后(查看|访问|继续)|登录(后)?才能(查看|访问)/,
-  // 英文
-  /page not found|404 not found|content (not found|unavailable|removed)/i,
-  /(item|product|listing) (no longer available|not available|removed|unavailable)/i,
-  /(sign|log) ?in (required|to (view|continue|see))/i,
-  /this (page|video|post|account) (isn'?t|is not|is no longer) available/i,
-];
-
-/** 登录页 URL 特征 */
-const LOGIN_URL_PATTERN = /\/(login|signin|sign-in|passport|auth|account\/login)\b/i;
-
-/**
- * 判断是否为 JS 渲染型页面（SPA 壳）：
- * 初始 HTML 几乎无内容、靠脚本运行时渲染，静态分析无法代表真实页面。
- */
-function isJsRenderedShell(html: string): boolean {
-  // 有外链/内联脚本即可能是 SPA
-  const hasScript = /<script[\s>]/i.test(html);
-  if (!hasScript) return false;
-  // 常见挂载点与框架特征
-  return (
-    /<div[^>]+id=["'](root|app|__next|__nuxt|main)["']/i.test(html) ||
-    /data-reactroot|data-v-app|ng-version|__NEXT_DATA__|window\.__INITIAL_STATE__/i.test(html) ||
-    // 脚本数量明显多于可见文本：壳页面典型形态
-    (html.match(/<script/gi)?.length ?? 0) >= 3
-  );
-}
-
-/** 内容层启发式：200 响应进一步判断是否为软 404 / 登录墙 / 跳首页 */
-function inspectContent(originalUrl: string, resp: Response, html: string): ProbeResult {
-  // 1) 重定向漂移：原 URL 有深路径，最终却落在首页或登录页
-  try {
-    const orig = new URL(originalUrl);
-    const final = new URL(resp.url);
-    const origHasPath = orig.pathname.length > 1 || orig.search.length > 0;
-    if (LOGIN_URL_PATTERN.test(final.pathname)) {
-      return { kind: 'suspect', detail: 'login-wall' };
-    }
-    if (origHasPath && final.hostname === orig.hostname && final.pathname === '/' && !final.search) {
-      return { kind: 'suspect', detail: 'redirect-home' };
-    }
-  } catch {
-    /* URL 解析失败则跳过该项检查 */
-  }
-
-  const jsShell = isJsRenderedShell(html);
-  const titleMatch = /<title[^>]*>([^<]*)<\/title>/i.exec(html);
-  const title = titleMatch?.[1] ?? '';
-
-  // 2) 软 404 / 失效关键词：
-  //    SPA 壳页面的正文不可信，只检查 <title>；静态页面检查 title + 正文前 4KB
-  const snippet = jsShell ? '' : html.slice(0, 4096);
-  for (const p of SOFT_DEAD_PATTERNS) {
-    if (p.test(title) || (snippet && p.test(snippet))) {
-      return { kind: 'suspect', detail: 'soft-404' };
-    }
-  }
-
-  // 3) 空页面：仅对非 JS 渲染的静态页面生效（SPA 壳的初始 HTML 本来就近乎为空）
-  if (!jsShell) {
-    const text = html
-      .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<[^>]+>/g, '')
-      .trim();
-    if (html.length > 0 && text.length < 80) {
-      return { kind: 'suspect', detail: 'empty-page' };
-    }
-  }
-
-  return { kind: 'ok', detail: '' };
-}
-
-/** 探测单条链接：协议层 + 内容层两级判定 */
+/** 委托 background 探测单条链接 */
 async function probe(url: string): Promise<ProbeResult> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), DEAD_CHECK_TIMEOUT);
   try {
-    // 直接 GET：内容层检查需要正文；redirect: 'follow' 下循环重定向会抛 TypeError
-    const resp = await fetch(url, {
-      method: 'GET',
-      signal: ctrl.signal,
-      redirect: 'follow',
-      credentials: 'omit',
-    });
-
-    // —— 协议层 ——
-    if (resp.status === 404 || resp.status === 410) {
-      return { kind: 'dead', detail: `HTTP ${resp.status}` };
-    }
-    if (resp.status === 403 || resp.status === 401) {
-      // 多为反爬/需鉴权，站点本身可能正常 → 疑似
-      return { kind: 'suspect', detail: `HTTP ${resp.status}` };
-    }
-    if (resp.status >= 500) {
-      // 服务器错误可能是临时的 → 疑似
-      return { kind: 'suspect', detail: `HTTP ${resp.status}` };
-    }
-    if (resp.status >= 400) {
-      return { kind: 'dead', detail: `HTTP ${resp.status}` };
-    }
-
-    // —— 内容层（仅 HTML 响应）——
-    const ct = resp.headers.get('content-type') ?? '';
-    if (ct.includes('text/html')) {
-      const html = (await resp.text()).slice(0, 65536);
-      return inspectContent(url, resp, html);
-    }
-    return { kind: 'ok', detail: '' };
-  } catch (e) {
-    if ((e as Error).name === 'AbortError') return { kind: 'suspect', detail: 'timeout' };
-    // DNS 不存在 / 连接拒绝 / 重定向循环（fetch 统一抛 TypeError）
-    return { kind: 'dead', detail: 'unreachable' };
-  } finally {
-    clearTimeout(timer);
+    const r = (await chrome.runtime.sendMessage({ type: 'probeUrl', url })) as
+      | ProbeResult
+      | undefined;
+    return r ?? { kind: 'suspect', detail: 'timeout' };
+  } catch {
+    // SW 未唤醒等异常，保守归为疑似
+    return { kind: 'suspect', detail: 'timeout' };
   }
 }
 
