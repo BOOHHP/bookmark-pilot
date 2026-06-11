@@ -53,6 +53,23 @@ const SOFT_DEAD_PATTERNS: RegExp[] = [
 /** 登录页 URL 特征 */
 const LOGIN_URL_PATTERN = /\/(login|signin|sign-in|passport|auth|account\/login)\b/i;
 
+/**
+ * 判断是否为 JS 渲染型页面（SPA 壳）：
+ * 初始 HTML 几乎无内容、靠脚本运行时渲染，静态分析无法代表真实页面。
+ */
+function isJsRenderedShell(html: string): boolean {
+  // 有外链/内联脚本即可能是 SPA
+  const hasScript = /<script[\s>]/i.test(html);
+  if (!hasScript) return false;
+  // 常见挂载点与框架特征
+  return (
+    /<div[^>]+id=["'](root|app|__next|__nuxt|main)["']/i.test(html) ||
+    /data-reactroot|data-v-app|ng-version|__NEXT_DATA__|window\.__INITIAL_STATE__/i.test(html) ||
+    // 脚本数量明显多于可见文本：壳页面典型形态
+    (html.match(/<script/gi)?.length ?? 0) >= 3
+  );
+}
+
 /** 内容层启发式：200 响应进一步判断是否为软 404 / 登录墙 / 跳首页 */
 function inspectContent(originalUrl: string, resp: Response, html: string): ProbeResult {
   // 1) 重定向漂移：原 URL 有深路径，最终却落在首页或登录页
@@ -70,22 +87,27 @@ function inspectContent(originalUrl: string, resp: Response, html: string): Prob
     /* URL 解析失败则跳过该项检查 */
   }
 
-  // 2) 软 404 / 失效关键词：只看 <title> 和正文前 4KB，避免误伤长页面中的普通提及
+  const jsShell = isJsRenderedShell(html);
   const titleMatch = /<title[^>]*>([^<]*)<\/title>/i.exec(html);
   const title = titleMatch?.[1] ?? '';
-  const snippet = html.slice(0, 4096);
+
+  // 2) 软 404 / 失效关键词：
+  //    SPA 壳页面的正文不可信，只检查 <title>；静态页面检查 title + 正文前 4KB
+  const snippet = jsShell ? '' : html.slice(0, 4096);
   for (const p of SOFT_DEAD_PATTERNS) {
-    if (p.test(title) || p.test(snippet)) {
+    if (p.test(title) || (snippet && p.test(snippet))) {
       return { kind: 'suspect', detail: 'soft-404' };
     }
   }
 
-  // 3) 正文过短：200 但几乎没有内容，多为占位页
-  const text = html
-    .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<[^>]+>/g, '')
-    .trim();
-  if (html.length > 0 && text.length < 80) {
-    return { kind: 'suspect', detail: 'empty-page' };
+  // 3) 空页面：仅对非 JS 渲染的静态页面生效（SPA 壳的初始 HTML 本来就近乎为空）
+  if (!jsShell) {
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<[^>]+>/g, '')
+      .trim();
+    if (html.length > 0 && text.length < 80) {
+      return { kind: 'suspect', detail: 'empty-page' };
+    }
   }
 
   return { kind: 'ok', detail: '' };
