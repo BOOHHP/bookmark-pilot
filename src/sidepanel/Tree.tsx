@@ -8,9 +8,9 @@ function faviconUrl(pageUrl: string): string {
   return url.toString();
 }
 
-function countBookmarks(node: CategoryNode): number {
-  let n = node.bookmarkIds?.length ?? 0;
-  for (const c of node.children ?? []) n += countBookmarks(c);
+function countBookmarks(node: CategoryNode, exists: Map<string, FlatBookmark>): number {
+  let n = node.bookmarkIds?.filter((id) => exists.has(id)).length ?? 0;
+  for (const c of node.children ?? []) n += countBookmarks(c, exists);
   return n;
 }
 
@@ -121,7 +121,7 @@ function Folder({
             {node.name}
           </span>
         )}
-        <span className="count">{countBookmarks(node)}</span>
+        <span className="count">{countBookmarks(node, bookmarkById)}</span>
         {edit && !renaming && (
           <span className="folder-actions" onClick={(e) => e.stopPropagation()}>
             <button
