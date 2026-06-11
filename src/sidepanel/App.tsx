@@ -5,7 +5,7 @@ import type {
   ClassifyResult,
   FlatBookmark,
 } from '../types';
-import { classify, classifyIncremental, loadSavedResult } from '../core/classifier';
+import { classify, classifyIncremental, estimateClassify, loadSavedResult, type ClassifyEstimate } from '../core/classifier';
 import {
   applyToBookmarks,
   backupBookmarks,
@@ -23,6 +23,7 @@ import { DEFAULT_SETTINGS, fontCss, type Settings } from '../types';
 import { applyColorMode, t } from '../core/i18n';
 import { Tree, type TreeEditHandlers } from './Tree';
 import { HealthPanel } from './HealthPanel';
+import { Onboarding } from './Onboarding';
 
 /** 应用外观设置到根元素 CSS 变量 + 颜色模式 */
 function applyAppearance(s: Settings) {
@@ -47,6 +48,8 @@ export function App() {
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [view, setView] = useState<'tree' | 'health'>('tree');
   const [notice, setNotice] = useState('');
+  const [estimate, setEstimate] = useState<ClassifyEstimate | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [uiSettings, setUiSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const abortRef = useRef<AbortController | null>(null);
   const d = t(uiSettings.language);
@@ -63,6 +66,7 @@ export function App() {
     loadSettings().then((s) => {
       setUiSettings(s);
       applyAppearance(s);
+      setSettingsLoaded(true);
     });
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area === 'local' && changes.settings?.newValue) {
@@ -119,6 +123,38 @@ export function App() {
 
   const running = progress.phase === 'labeling' || progress.phase === 'building' || progress.phase === 'assigning';
 
+  /** 执行分类；limit 限制条数（试分类） */
+  const runClassify = useCallback(async (limit?: number) => {
+    setError('');
+    setNotice('');
+    setEstimate(null);
+    const settings = await loadSettings();
+    if (!settings.apiKey) {
+      setError(d.needApiKey);
+      chrome.runtime.openOptionsPage();
+      return;
+    }
+    const all = await getFlatBookmarks();
+    setBookmarks(all);
+    let unique = dedupeByUrl(all);
+    if (limit) unique = unique.slice(0, limit);
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    try {
+      const r = await classify(settings, unique, setProgress, ctrl.signal);
+      setResult(r);
+      if (limit) setNotice(d.trialNotice(unique.length));
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') {
+        setError(`${d.classifyFailed}: ${(e as Error).message}`);
+        setProgress({ phase: 'error', done: 0, total: 0 });
+      } else {
+        setProgress({ phase: 'idle', done: 0, total: 0 });
+      }
+    }
+  }, [d]);
+
+  /** 点击分类：先出成本预估确认 */
   const startClassify = useCallback(async () => {
     setError('');
     const settings = await loadSettings();
@@ -129,21 +165,8 @@ export function App() {
     }
     const all = await getFlatBookmarks();
     setBookmarks(all);
-    const unique = dedupeByUrl(all);
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-    try {
-      const r = await classify(settings, unique, setProgress, ctrl.signal);
-      setResult(r);
-    } catch (e) {
-      if ((e as Error).name !== 'AbortError') {
-        setError(`${d.classifyFailed}: ${(e as Error).message}`);
-        setProgress({ phase: 'error', done: 0, total: 0 });
-      } else {
-        setProgress({ phase: 'idle', done: 0, total: 0 });
-      }
-    }
-  }, []);
+    setEstimate(await estimateClassify(dedupeByUrl(all)));
+  }, [d]);
 
   const cancelClassify = useCallback(() => {
     abortRef.current?.abort();
@@ -272,7 +295,8 @@ export function App() {
       return (
         b?.title.toLowerCase().includes(q) ||
         b?.url.toLowerCase().includes(q) ||
-        l?.summary.toLowerCase().includes(q)
+        l?.summary.toLowerCase().includes(q) ||
+        l?.tags.some((tag) => tag.toLowerCase().includes(q))
       );
     };
     const filter = (nodes: CategoryNode[]): CategoryNode[] =>
@@ -294,6 +318,13 @@ export function App() {
           bookmarks={bookmarks}
           onBack={() => setView('tree')}
           onBookmarksChanged={() => getFlatBookmarks().then(setBookmarks)}
+        />
+      ) : settingsLoaded && !uiSettings.apiKey && !result && !running ? (
+        <Onboarding
+          d={d}
+          settings={uiSettings}
+          bookmarkCount={bookmarks.length}
+          onStart={runClassify}
         />
       ) : (
         <>
@@ -402,6 +433,29 @@ export function App() {
                   <button className="primary" onClick={doApply} disabled={applying}>
                     {applying ? d.applying : d.confirmApply}
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {estimate && (
+            <div className="modal-backdrop" onClick={() => setEstimate(null)}>
+              <div className="modal" onClick={(e) => e.stopPropagation()}>
+                <h3>{d.estimateTitle}</h3>
+                <div>
+                  • {d.estimateTotal(estimate.total)}
+                  {estimate.cached > 0 && (
+                    <>
+                      <br />• {d.estimateCached(estimate.cached)}
+                    </>
+                  )}
+                  <br />• {d.estimateRequests(estimate.requests)}
+                  <br />
+                  <small>{d.estimateNote}</small>
+                </div>
+                <div className="actions">
+                  <button onClick={() => setEstimate(null)}>{d.cancel}</button>
+                  <button className="primary" onClick={() => runClassify()}>{d.startNow}</button>
                 </div>
               </div>
             </div>

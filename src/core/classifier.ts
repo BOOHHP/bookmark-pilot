@@ -283,6 +283,25 @@ export async function loadSavedResult(): Promise<ClassifyResult | null> {
   return data.classifyResult ?? null;
 }
 
+export interface ClassifyEstimate {
+  /** 总书签数 */
+  total: number;
+  /** 缓存命中数（无需请求） */
+  cached: number;
+  /** 预计 API 请求次数 */
+  requests: number;
+}
+
+/** 分类前成本预估（纯本地，基于缓存命中率） */
+export async function estimateClassify(bookmarks: FlatBookmark[]): Promise<ClassifyEstimate> {
+  const cache = await loadCache();
+  const cached = bookmarks.filter((b) => cache[hashUrl(b.url)]).length;
+  const pending = bookmarks.length - cached;
+  const requests =
+    Math.ceil(pending / BATCH_SIZE) + 1 + Math.ceil(bookmarks.length / ASSIGN_BATCH_SIZE);
+  return { total: bookmarks.length, cached, requests };
+}
+
 /**
  * 增量归类：把若干新书签打标后归入现有分类树（不重建树）。
  * 返回更新后的 ClassifyResult（已持久化）。
