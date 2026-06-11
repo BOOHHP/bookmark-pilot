@@ -1,8 +1,18 @@
 // Service Worker：点击工具栏图标打开侧边栏 + 监听新书签 + 代理死链探测
 import { fetchPageMeta, probeUrl } from '../core/probe';
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
+  // Chrome Web Store 自动更新完成后记录待展示的「新版本说明」
+  // （首次安装 reason='install' 不弹，交给引导页）
+  if (details.reason === 'update' && details.previousVersion) {
+    const current = chrome.runtime.getManifest().version;
+    if (details.previousVersion !== current) {
+      chrome.storage.local.set({
+        pendingWhatsNew: { from: details.previousVersion, to: current, at: Date.now() },
+      });
+    }
+  }
 });
 
 // 死链探测在 SW 中执行：SW 无 DOM，不会触发被测站点的 preload/CSP 噪音

@@ -30,6 +30,7 @@
 - 🏷️ **Meta Enrichment** — bookmarks with meaningless titles ("Untitled", bare domains) get their page title/description fetched for better classification (optional permission)
 - 🧩 **Structure-Preserving Re-classify** — re-classifying keeps your manually renamed/adjusted categories as constraints instead of starting from scratch
 - ☁️ **Settings Roaming** — appearance & provider preferences sync across devices via Chrome account (API key never syncs)
+- 🎁 **What's New Dialog** — after Chrome auto-updates the extension, the next side panel open shows a concise changelog (accumulates across skipped versions, shown once)
 - 🎨 **Themeable UI** — dark / light / system mode, custom accent color, fonts; whole UI derives from one accent color
 - 🌐 **i18n** — Chinese & English, auto-detected from browser
 - 💾 **Safety First** — automatic backup (exportable as standard Netscape HTML) before any change; URL-level label cache to avoid re-spending API quota

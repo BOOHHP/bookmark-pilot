@@ -24,6 +24,8 @@ import { applyColorMode, t } from '../core/i18n';
 import { Tree, type TreeEditHandlers } from './Tree';
 import { HealthPanel } from './HealthPanel';
 import { Onboarding } from './Onboarding';
+import { entriesSince, type ChangelogEntry } from '../core/changelog';
+import { resolveLang } from '../core/i18n';
 
 /** 应用外观设置到根元素 CSS 变量 + 颜色模式 */
 function applyAppearance(s: Settings) {
@@ -51,6 +53,7 @@ export function App() {
   const [estimate, setEstimate] = useState<ClassifyEstimate | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [obSkipped, setObSkipped] = useState(false);
+  const [whatsNew, setWhatsNew] = useState<{ to: string; entries: ChangelogEntry[] } | null>(null);
   const [uiSettings, setUiSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const abortRef = useRef<AbortController | null>(null);
   const d = t(uiSettings.language);
@@ -66,6 +69,14 @@ export function App() {
     chrome.storage.local
       .get('onboardingSkipped')
       .then((data) => setObSkipped(!!data.onboardingSkipped));
+    // 自动更新后首次打开：展示「新版本内容」弹窗（跨多版本更新会累积展示）
+    chrome.storage.local.get('pendingWhatsNew').then((data) => {
+      const p = data.pendingWhatsNew as { from: string; to: string } | undefined;
+      if (!p) return;
+      const entries = entriesSince(p.from, p.to);
+      if (entries.length > 0) setWhatsNew({ to: p.to, entries });
+      else chrome.storage.local.remove('pendingWhatsNew');
+    });
     // 外观 + 语言：初始应用 + 监听设置变更实时生效
     loadSettings().then((s) => {
       setUiSettings(s);
@@ -492,6 +503,47 @@ export function App() {
             </div>
           )}
         </>
+      )}
+
+      {whatsNew && (
+        <div
+          className="modal-backdrop"
+          onClick={() => {
+            setWhatsNew(null);
+            chrome.storage.local.remove('pendingWhatsNew');
+          }}
+        >
+          <div className="modal whatsnew" onClick={(e) => e.stopPropagation()}>
+            <h3>{d.whatsNewTitle(whatsNew.to)}</h3>
+            <div className="wn-body">
+              {whatsNew.entries.map((entry) => (
+                <div key={entry.version} className="wn-version">
+                  {whatsNew.entries.length > 1 && (
+                    <div className="wn-version-tag">v{entry.version}</div>
+                  )}
+                  <ul>
+                    {(resolveLang(uiSettings.language) === 'zh' ? entry.zh : entry.en).map(
+                      (line, i) => (
+                        <li key={i}>{line}</li>
+                      ),
+                    )}
+                  </ul>
+                </div>
+              ))}
+            </div>
+            <div className="actions">
+              <button
+                className="primary"
+                onClick={() => {
+                  setWhatsNew(null);
+                  chrome.storage.local.remove('pendingWhatsNew');
+                }}
+              >
+                {d.whatsNewOk}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
