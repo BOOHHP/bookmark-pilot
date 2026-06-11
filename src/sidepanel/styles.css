@@ -117,24 +117,26 @@ button.danger { color: var(--danger); }
 }
 .tree > div:first-child { flex-shrink: 0; }
 
-/* 分类进行中：整个树区域的流动光带背景 */
+/* 分类进行中：整个树区域的流动光带背景（无缝循环：每周期精确移动一个图块宽度） */
 .tree.running {
   position: relative;
   background:
     linear-gradient(
       115deg,
       transparent 0%,
-      color-mix(in srgb, var(--accent) 7%, transparent) 30%,
+      color-mix(in srgb, var(--accent) 7%, transparent) 25%,
       color-mix(in srgb, var(--accent) 16%, transparent) 50%,
-      color-mix(in srgb, var(--accent) 7%, transparent) 70%,
+      color-mix(in srgb, var(--accent) 7%, transparent) 75%,
       transparent 100%
     );
-  background-size: 280% 100%;
+  background-size: 200% 100%;
+  background-repeat: repeat-x;
   animation: tree-flow 2.8s linear infinite;
 }
 @keyframes tree-flow {
-  0% { background-position: 120% 0; }
-  100% { background-position: -160% 0; }
+  /* background-size 200% 时，position-x 0% → -200% 恰好平移一个完整图块，首尾无缝 */
+  0% { background-position: 0% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* 大号分类进度面板（位于树区域内） */
