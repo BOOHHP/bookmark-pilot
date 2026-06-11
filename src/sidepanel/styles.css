@@ -112,6 +112,125 @@ button.danger { color: var(--danger); }
   flex: 1;
   overflow-y: auto;
   padding: 8px;
+  display: flex;
+  flex-direction: column;
+}
+.tree > div:first-child { flex-shrink: 0; }
+
+/* 分类进行中：整个树区域的流动光带背景 */
+.tree.running {
+  position: relative;
+  background:
+    linear-gradient(
+      115deg,
+      transparent 0%,
+      color-mix(in srgb, var(--accent) 7%, transparent) 30%,
+      color-mix(in srgb, var(--accent) 16%, transparent) 50%,
+      color-mix(in srgb, var(--accent) 7%, transparent) 70%,
+      transparent 100%
+    );
+  background-size: 280% 100%;
+  animation: tree-flow 2.8s linear infinite;
+}
+@keyframes tree-flow {
+  0% { background-position: 120% 0; }
+  100% { background-position: -160% 0; }
+}
+
+/* 大号分类进度面板（位于树区域内） */
+.classify-hero {
+  margin: auto 0;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: hero-in 0.35s ease;
+}
+@keyframes hero-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+.ch-steps {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.ch-steps::before { content: none; }
+.ch-step {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  border: 2px solid var(--border);
+  color: var(--muted);
+  background: var(--panel);
+  transition: all 0.3s;
+}
+.ch-step.past {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--primary-btn-text);
+}
+.ch-step.now {
+  border-color: var(--accent);
+  color: var(--accent);
+  animation: step-pulse 1.4s ease-in-out infinite;
+}
+@keyframes step-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+  50% { box-shadow: 0 0 0 7px transparent; }
+}
+
+.ch-phase {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ch-percent {
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.ch-track {
+  width: 100%;
+  max-width: 320px;
+  height: 10px;
+  background: var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.ch-fill {
+  height: 100%;
+  min-width: 8px;
+  border-radius: 5px;
+  background: linear-gradient(
+    90deg,
+    var(--accent),
+    color-mix(in srgb, var(--accent) 55%, #ffffff),
+    var(--accent)
+  );
+  background-size: 200% 100%;
+  animation: fill-shimmer 1.6s linear infinite;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes fill-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: 0% 0; }
+}
+
+.ch-count {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .folder-row {

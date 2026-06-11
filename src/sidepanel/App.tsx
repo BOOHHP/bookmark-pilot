@@ -359,22 +359,10 @@ export function App() {
             </div>
           )}
 
-          {(running || progress.phase === 'done') && (
+          {(progress.phase === 'done' || progress.phase === 'error') && !running && (
             <div className="status-bar">
-              {progress.phase === 'labeling' && d.phaseLabeling}
-              {progress.phase === 'building' && d.phaseBuilding}
-              {progress.phase === 'assigning' && d.phaseAssigning}
               {progress.phase === 'done' && d.phaseDone}
               {progress.phase === 'error' && d.phaseError}
-              {progress.total > 0 && ` (${progress.done}/${progress.total})`}
-              {running && (
-                <div className="progress-track">
-                  <div
-                    className="progress-fill"
-                    style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }}
-                  />
-                </div>
-              )}
             </div>
           )}
 
@@ -385,19 +373,54 @@ export function App() {
             <div className="edit-hint">{d.editHint}</div>
           )}
 
-          <div className="tree">
+          <div className={`tree ${running ? 'running' : ''}`}>
             {filteredTree ? (
               <Tree
                 nodes={filteredTree}
                 bookmarkById={bookmarkById}
                 labels={result!.labels}
-                edit={search.trim() ? undefined : editHandlers}
+                edit={search.trim() || running ? undefined : editHandlers}
               />
-            ) : (
+            ) : !running ? (
               <div className="empty">
                 {d.emptyLine1(bookmarks.length)}
                 <br />
                 {d.emptyLine2}
+              </div>
+            ) : null}
+            {running && (
+              <div className="classify-hero">
+                <div className="ch-steps">
+                  {(['labeling', 'building', 'assigning'] as const).map((ph, i) => {
+                    const order = { labeling: 0, building: 1, assigning: 2 } as const;
+                    const cur = order[progress.phase as keyof typeof order] ?? 0;
+                    const state = i < cur ? 'past' : i === cur ? 'now' : 'next';
+                    return (
+                      <span key={ph} className={`ch-step ${state}`}>
+                        {i < cur ? '✓' : i + 1}
+                      </span>
+                    );
+                  })}
+                </div>
+                <div className="ch-phase">
+                  {progress.phase === 'labeling' && d.phaseLabeling}
+                  {progress.phase === 'building' && d.phaseBuilding}
+                  {progress.phase === 'assigning' && d.phaseAssigning}
+                </div>
+                <div className="ch-percent">
+                  {progress.total > 0
+                    ? `${Math.round((progress.done / progress.total) * 100)}%`
+                    : '…'}
+                </div>
+                <div className="ch-track">
+                  <div
+                    className="ch-fill"
+                    style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 8}%` }}
+                  />
+                </div>
+                {progress.total > 0 && (
+                  <div className="ch-count">{progress.done} / {progress.total}</div>
+                )}
               </div>
             )}
           </div>
