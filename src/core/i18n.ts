@@ -80,6 +80,7 @@ const zh = {
   obTryFirst20: '⚡ 试分类前 20 条',
   obClassifyAll: '全部分类',
   obTryHint: '试分类仅需几秒，满意后可随时重新全量分类。Key 仅保存在本机。',
+  obSkip: '跳过，先随便看看 →',
   trialNotice: (n: number) => `⚡ 这是前 ${n} 条书签的试分类结果，点「重新分类」可全量整理`,
   // v0.3 成本预估
   estimateTitle: '开始分类？',
@@ -214,6 +215,7 @@ const en: typeof zh = {
   obTryFirst20: '⚡ Try first 20',
   obClassifyAll: 'Classify all',
   obTryHint: 'The trial takes seconds. Re-classify everything anytime. Your key stays on this device.',
+  obSkip: 'Skip for now →',
   trialNotice: (n: number) => `⚡ Trial result of the first ${n} bookmarks. Click "Re-classify" for a full run.`,
   // v0.3 cost estimate
   estimateTitle: 'Start classification?',

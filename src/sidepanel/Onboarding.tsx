@@ -10,9 +10,11 @@ interface OnboardingProps {
   bookmarkCount: number;
   /** limit 为 undefined 表示全量 */
   onStart: (limit?: number) => void;
+  /** 跳过引导，直接进入主界面 */
+  onSkip: () => void;
 }
 
-export function Onboarding({ d, settings, bookmarkCount, onStart }: OnboardingProps) {
+export function Onboarding({ d, settings, bookmarkCount, onStart, onSkip }: OnboardingProps) {
   const [providerId, setProviderId] = useState(settings.provider);
   const [apiKey, setApiKey] = useState(settings.apiKey);
   const [saving, setSaving] = useState(false);
@@ -86,6 +88,10 @@ export function Onboarding({ d, settings, bookmarkCount, onStart }: OnboardingPr
         </div>
         <p className="ob-hint">{d.obTryHint}</p>
       </div>
+
+      <button className="ob-skip" onClick={onSkip}>
+        {d.obSkip}
+      </button>
     </div>
   );
 }

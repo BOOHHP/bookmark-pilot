@@ -50,6 +50,7 @@ export function App() {
   const [notice, setNotice] = useState('');
   const [estimate, setEstimate] = useState<ClassifyEstimate | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [obSkipped, setObSkipped] = useState(false);
   const [uiSettings, setUiSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const abortRef = useRef<AbortController | null>(null);
   const d = t(uiSettings.language);
@@ -62,6 +63,9 @@ export function App() {
     chrome.storage.local
       .get('pendingNewBookmarks')
       .then((data) => setPendingIds(data.pendingNewBookmarks ?? []));
+    chrome.storage.local
+      .get('onboardingSkipped')
+      .then((data) => setObSkipped(!!data.onboardingSkipped));
     // 外观 + 语言：初始应用 + 监听设置变更实时生效
     loadSettings().then((s) => {
       setUiSettings(s);
@@ -319,12 +323,16 @@ export function App() {
           onBack={() => setView('tree')}
           onBookmarksChanged={() => getFlatBookmarks().then(setBookmarks)}
         />
-      ) : settingsLoaded && !uiSettings.apiKey && !result && !running ? (
+      ) : settingsLoaded && !uiSettings.apiKey && !result && !running && !obSkipped ? (
         <Onboarding
           d={d}
           settings={uiSettings}
           bookmarkCount={bookmarks.length}
           onStart={runClassify}
+          onSkip={() => {
+            setObSkipped(true);
+            chrome.storage.local.set({ onboardingSkipped: true });
+          }}
         />
       ) : (
         <>

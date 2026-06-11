@@ -439,6 +439,22 @@ button.danger { color: var(--danger); }
   font-size: 11px;
   color: var(--muted);
 }
+.ob-skip {
+  align-self: center;
+  margin-top: 4px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.ob-skip:hover {
+  background: none;
+  border: none;
+  color: var(--accent);
+}
 
 .bookmark-row {
   display: flex;
