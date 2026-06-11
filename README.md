@@ -21,8 +21,10 @@
 - ✏️ **Fully Editable Results** — double-click to rename folders, delete categories, drag & drop bookmarks between categories before applying
 - ↩️ **One-Click Undo** — every apply records original positions; undo restores everything and removes the AI folder
 - 🔔 **Auto-Categorize New Bookmarks** — after organizing, new bookmarks get a badge + banner; one click slots them into the existing tree incrementally
+- 🔃 **Live Sync** — removing or editing a bookmark in the browser instantly updates the side panel tree and folder counts
 - 🩺 **Bookmark Health Check** — find duplicates (local, free) and broken links with two-tier detection: protocol-level dead links (404/410/unreachable) and content-level "possibly broken" pages (soft 404, login wall, redirects to homepage). Probes carry your login state, and each suspect has a one-click re-check to clear false positives after signing in
-- ⚡ **Trial Mode & Cost Estimate** — try the first 20 bookmarks in seconds; see expected API request count before a full run
+- ⚡ **Trial Mode & Cost Estimate** — try the first 20 bookmarks in seconds; see expected API request count before a full run; onboarding can be skipped entirely
+- ✨ **Animated Progress** — 3-step indicator, large percentage display, shimmering progress bar and flowing background while classifying
 - 🔍 **Smart Search** — match title, URL, AI summary and AI tags
 - 🎨 **Themeable UI** — dark / light / system mode, custom accent color, fonts; whole UI derives from one accent color
 - 🌐 **i18n** — Chinese & English, auto-detected from browser
@@ -69,9 +71,9 @@ Tech stack: Vite 5 + React 18 + TypeScript, Chrome Manifest V3 (Side Panel API).
 
 ```
 src/
-├── background/     # service worker: side panel behavior, new-bookmark badge
+├── background/     # service worker: side panel behavior, new-bookmark badge, link probes
 ├── core/           # llm.ts (3 API protocols) · classifier.ts (Map-Reduce)
-│                   # bookmarks.ts (apply/undo/backup) · health.ts · treeEdit.ts
+│                   # bookmarks.ts (apply/undo/backup) · health.ts · probe.ts · treeEdit.ts
 │                   # cache.ts · settings.ts · i18n.ts
 ├── sidepanel/      # App / Tree / HealthPanel / Onboarding
 └── options/        # settings page (API + appearance)
@@ -81,7 +83,7 @@ src/
 
 - Bookmark titles/domains are sent **only** to the LLM provider you configure
 - No analytics, no tracking, no third-party servers
-- Dead-link checking requests `<all_urls>` **optionally and on demand**, used solely for HTTP status probes
+- Dead-link checking requests `<all_urls>` **optionally and on demand**; probes run in the background service worker and are used solely to check link status
 
 ## License
 
