@@ -10,6 +10,7 @@
     "128": "icons/icon128.png"
   },
   "minimum_chrome_version": "114",
+  "homepage_url": "https://github.com/BOOHHP/bookmark-pilot",
   "permissions": ["bookmarks", "sidePanel", "storage", "favicon"],
   "optional_host_permissions": ["<all_urls>"],
   "host_permissions": [
