@@ -4,6 +4,9 @@ dist/
 .env*
 *.zip
 
+# 开发文档，不上传 GitHub
+docs/
+
 # 个人收款码，不上传 GitHub
 icons/donate-wechat.*
 icons/donate-alipay.*
