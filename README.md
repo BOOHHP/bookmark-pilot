@@ -90,6 +90,15 @@ src/
 - No analytics, no tracking, no third-party servers
 - Dead-link checking requests `<all_urls>` **optionally and on demand**; probes run in the background service worker and are used solely to check link status
 
+## 💖 Support the Developer
+
+BookmarkPilot is my first Chrome extension — free, open source, and built in my spare time. If it helps you tame your bookmarks, you can support its development with a small donation:
+
+- **Donate via PayPal**: the extension's Options page (❤️ Support tab) provides a donate button that opens a secure **PayPal** payment page. PayPal balance, credit cards (Visa / Mastercard) and UnionPay cards are accepted via guest checkout — no PayPal account required. Preset amounts are 0.5 / 1 / 2 / 5 / 10 in your local currency (auto-detected from your browser region, manually switchable), or enter a custom amount.
+- **Users in China**: WeChat Pay / Alipay QR codes are shown on the same page.
+
+Donations are entirely voluntary and unlock nothing extra — every feature is and will remain free. All funds go toward the continued development and maintenance of this project. Thank you! 💛
+
 ## License
 
 MIT

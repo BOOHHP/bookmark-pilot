@@ -3,3 +3,7 @@ dist/
 *.local
 .env*
 *.zip
+
+# 个人收款码，不上传 GitHub
+icons/donate-wechat.*
+icons/donate-alipay.*
